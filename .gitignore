@@ -1,5 +1,13 @@
 Images/
 Manual/
 
+PC/__pycache__
+PC/build
+PC/dist
+
+MacOS/build
+MacOS/dist
+MacOS/.DS_Store
+
 .*
 !.gitignore

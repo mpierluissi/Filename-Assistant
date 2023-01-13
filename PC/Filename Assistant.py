@@ -1,20 +1,18 @@
-# UCS FILENAME ASSISTANT v3.9.8.1
+# UCS FILENAME ASSISTANT v3.7.8.1
 # by Michael Pierluissi
 
 ############################################################################################################################################
 #LIBRARY IMPORTS
-import os
-import csv
-import re
-from unicodedata import category
-import pyperclip
+from collections import defaultdict
 import configparser
-import requests
+import csv
+import os
+import pyperclip
+import re
+#import requests
 import subprocess
 import tkinter as tk
-from urllib.request import urlopen
-from collections import defaultdict
-from tkinter.ttk import Combobox, Spinbox, Separator
+from tkinter.ttk import Combobox, Progressbar, Spinbox, Separator
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from tkinter import END, Menu, messagebox, Spinbox
 
@@ -23,12 +21,19 @@ from tkinter import END, Menu, messagebox, Spinbox
 relpath = os.path.dirname(__file__)
 
 #MASTER VARIABLES
+windowColor = '#222222'
+textColor = '#cfcfcf'
 ucsLabelColor = '#c62828'
+widgetBgColor = '#3e3e3e'
+textBoxBgColor = '#cfcfcf'
+checkboxColor = windowColor
+checkboxHighlightColor = windowColor
 
 ucsLabelText = 'Helvetica 10 bold'
+catIDListboxText='Courier 14'
 catIDLabelText = 'Helvetica 12 bold'
-textBoxFont = 'Helvetica 10'
-noticeTextFont = 'Helvetica 10 bold'
+textBoxText = 'Helvetica 12'
+noticeTextText = 'Helvetica 10 bold'
 
 specialCharacters = '<>:"/\|?*'
 
@@ -54,13 +59,10 @@ configSettings.read(configFile)
 #CATEGORY ID INIT
 ucsURL = 'https://docs.google.com/spreadsheets/d/1lfYszp5TEjcqSUNgXd0ph9V3UDhXQFZFVtGkERH24u4/gviz/tq?tqx=out:csv&sheet=categorylist'
 
-try:
-    r = requests.get(ucsURL, allow_redirects=True, timeout=10)
-    open(relpath + '/data/UCSList.csv', 'wb').write(r.content)  
-    print('internet') 
-except:
-    x=0
-    print('no internet')
+# try:
+#     requests.get(ucsURL, relpath + '/data/UCSList.csv', timeout=0.250)
+# except requests.exceptions.Timeout:
+#     x = None
 
 catIDCSV = relpath + '/data/UCSList.csv'
 
@@ -85,7 +87,7 @@ def openUserLists():
     subprocess.call(['open', userListFile])
 
 def openUCSDoc():
-    subprocess.call(['open', relpath + '/data/UCS Filenaming Documentation.pdf'])
+    subprocess.call(['open', relpath + 'data/UCS Filenaming Documentation.pdf'])
 
 def openFnAsstDoc():
     subprocess.call(['open', 'https://www.michaelpierluissi.com/filename-assistant.html'])
@@ -139,13 +141,19 @@ class fnAsst(TkinterDnD.Tk):
         self._frame = newFrame
         self._frame.pack()
 
+    def onClose(self):
+        curWindowGeometry = str(self.geometry())
+        posLoc = 0
+        for item in curWindowGeometry:
+            if item == '+':
+                break
+            posLoc += 1
+        updateConfigVar('Window Settings', 'windowposition', '480x760' + curWindowGeometry[posLoc:])
+
+        self.destroy()
+
     def runBatchRename(self):
         self.switchFrame(batchRenameWindow)
-
-    def savePos(self):
-        updateConfigVar('Window Settings', 'windowPositionX', str(self.winfo_rootx()))
-        updateConfigVar('Window Settings', 'windowPositionY', str(self.winfo_rooty()-25))
-        self.destroy()
 
 ############################################################################################################################################
 #CATEGORY ID
@@ -154,22 +162,25 @@ class categoryIDWindow(tk.Frame):
         tk.Frame.__init__(self, master)
         #
         master.resizable(False, False)
-        master.geometry('+%d+%d' % (int(configSettings['Window Settings']['windowPositionX']), int(configSettings['Window Settings']['windowPositionY']))) 
         master.title('Category ID')
-        master.iconbitmap(relpath + '/data/icon.ico')
+        master.iconbitmap('data/icon.ico')
 
-        rootFrame = tk.Frame(self)
+        self.configure(background=windowColor)
+
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=10)
 
         #MENU BAR
         menubar = Menu(master)
 
-        menubar.add_command(label='Batch Rename', command=master.runBatchRename)
+        runMenu = Menu(menubar, tearoff=0)
+        runMenu.add_command(label='Batch Rename', command=master.runBatchRename)
+        menubar.add_cascade(label='Run', menu=runMenu)
 
         optionsMenu = Menu(menubar, tearoff=0)
         optionsMenu.add_command(label="Edit User Lists", command=openUserLists)
         optionsMenu.add_separator()
-        optionsMenu.add_command(label="Exit", command=lambda:master.destroy)
+        optionsMenu.add_command(label="Exit", command=master.onClose)
         menubar.add_cascade(label="Options", menu=optionsMenu)
 
         helpMenu = Menu(menubar, tearoff=0)
@@ -253,25 +264,25 @@ class categoryIDWindow(tk.Frame):
         textFrame = tk.Frame(rootFrame)
         textFrame.grid(row=0, column=0, rowspan=2, columnspan=2, pady=(10, 5), sticky='w')
 
-        textbox = tk.Text(textFrame, width=30, height=1, font=textBoxFont)
+        textbox = tk.Text(textFrame, width=30, height=1, highlightthickness=0, font=textBoxText)
         textbox.pack()
 
         #OPTIONS
         checkboxFrame = tk.Frame(rootFrame)
-        checkboxFrame.configure()
+        checkboxFrame.configure(background=windowColor)
         checkboxFrame.grid(row=0, column=0, sticky='e', pady=5)
 
         userCatCheck = tk.IntVar()
         userCatCheck.set(configSettings['Options']['userCat'])
 
-        userCatCheckbox = tk.Checkbutton(checkboxFrame, variable=userCatCheck, text='User Category')
+        userCatCheckbox = tk.Checkbutton(checkboxFrame, variable=userCatCheck, text='User Category', bg=windowColor, fg=textColor, selectcolor=checkboxColor, activebackground=checkboxHighlightColor, activeforeground=textColor)
         userCatCheckbox.pack(side='top', anchor='w')
         userCatCheckbox.var = userCatCheck
 
         vendorCatCheck = tk.IntVar()
         vendorCatCheck.set(configSettings['Options']['vendorCat'])
 
-        vendorCatCheckbox = tk.Checkbutton(checkboxFrame, variable=vendorCatCheck, text='Vendor Category')
+        vendorCatCheckbox = tk.Checkbutton(checkboxFrame, variable=vendorCatCheck, text='Vendor Category', bg=windowColor, fg=textColor, selectcolor=checkboxColor, activebackground=checkboxHighlightColor, activeforeground=textColor)
         vendorCatCheckbox.pack(side='bottom', anchor='w')
         vendorCatCheckbox.var = vendorCatCheck
 
@@ -279,7 +290,7 @@ class categoryIDWindow(tk.Frame):
         listboxFrame = tk.Frame(rootFrame)
         listboxFrame.grid(row=2, column=0, sticky='w', pady=5)
 
-        listbox = tk.Listbox(listboxFrame, selectmode='single', activestyle='none', width=40, height=25, font='Courier 12')
+        listbox = tk.Listbox(listboxFrame, selectmode='single', activestyle='none', width=40, height=25, font=catIDListboxText, background=widgetBgColor, foreground=textColor)
         listboxScroll = tk.Scrollbar(listboxFrame, orient='vertical', command=listbox.yview)
 
         listbox.config(yscrollcommand=listboxScroll.set, xscrollcommand='')
@@ -291,14 +302,14 @@ class categoryIDWindow(tk.Frame):
         listbox.selection_set(0)
 
         #DESCRIPTION LABELS
-        descriptionFrame = tk.Frame(rootFrame, width=46, highlightbackground='black', highlightthickness=1)
+        descriptionFrame = tk.Frame(rootFrame, width=46, background='#000000')
         descriptionFrame.grid(row=3, column=0, sticky='news', pady=5)
 
-        label1 = tk.Label(descriptionFrame, font=catIDLabelText)
-        label2 = tk.Label(descriptionFrame, height=3, font=(24))
+        label1 = tk.Label(descriptionFrame, font=catIDLabelText, fg=textColor)
+        label2 = tk.Label(descriptionFrame, height=3, font=(20), fg=textColor)
 
-        label1.configure(anchor='w')
-        label2.configure(justify='left', anchor='nw', wraplength=400)
+        label1.configure(background=widgetBgColor, anchor='w')
+        label2.configure(background=widgetBgColor, justify='left', anchor='nw', wraplength=400)
 
         label1.pack(fill='x')
         label2.pack(fill='x')
@@ -309,7 +320,7 @@ class categoryIDWindow(tk.Frame):
         buttonFrame = tk.Frame(rootFrame)
         buttonFrame.grid(row=4, column=0, sticky='w', pady=(5, 10))
 
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack()
+        tk.Button(buttonFrame, width=10, text='OK', highlightbackground=windowColor, command=OKPress).pack()
 
         #BINDINGS
         textbox.bind('<KeyRelease>', textCheck)
@@ -320,7 +331,7 @@ class categoryIDWindow(tk.Frame):
         master.bind('<Up>', upArrow)
         master.bind('<Down>', downArrow)
         master.bind('<Return>', enterKey)
-        master.protocol("WM_DELETE_WINDOW", master.savePos)
+        master.protocol("WM_DELETE_WINDOW", master.onClose)
 
 ############################################################################################################################################
 #USER CATEGORY
@@ -329,10 +340,11 @@ class userCategoryWindow(tk.Frame):
         tk.Frame.__init__(self, master)
         
         master.resizable(False, False)
-
         master.title('User Category')
 
-        rootFrame = tk.Frame(self)
+        self.configure(background=windowColor)
+
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=10)
 
         #FUNCTIONS
@@ -370,22 +382,22 @@ class userCategoryWindow(tk.Frame):
         comboboxFrame = tk.Frame(rootFrame)
         comboboxFrame.grid(row=0, column=0, pady=(10, 5), sticky='w')
         
-        combobox = Combobox(comboboxFrame, values=userCatList, width=40, height=10)
+        combobox = Combobox(comboboxFrame, values=userCatList, background=windowColor, font=textBoxText, width=40, height=10)
         combobox.pack(anchor='w')
 
         #BUTTONS
-        buttonFrame = tk.Frame(rootFrame)
+        buttonFrame = tk.Frame(rootFrame, bg=windowColor)
         buttonFrame.grid(row=0, column=1, pady=(5, 0), sticky='w')
 
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
-        tk.Button(buttonFrame, width=10, text='Back', command=backPress).pack(side='right')
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='Back', command=backPress).pack(side='right')
 
         #UCS LABEL
         labelFrame2 = tk.Frame(rootFrame)
         labelFrame2.grid(row=1, column=0, pady=5, sticky='w', columnspan=2)
 
-        label = tk.Label(labelFrame2, text=catID)
-        label.configure(anchor='w', font=ucsLabelText, fg=ucsLabelColor)
+        label = tk.Label(labelFrame2, text=catID, fg=textColor)
+        label.configure(background=windowColor, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
         label.pack(fill='x')
 
         #BINDINGS
@@ -405,7 +417,9 @@ class vendorCategoryWindow(tk.Frame):
 
         master.title('Vendor Category')
 
-        rootFrame = tk.Frame(self)
+        self.configure(background=windowColor)
+
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=10)
 
         #FUNCTIONS
@@ -442,21 +456,21 @@ class vendorCategoryWindow(tk.Frame):
         comboboxFrame = tk.Frame(rootFrame)
         comboboxFrame.grid(row=0, column=0, pady=(10, 5), sticky='w')
         
-        combobox = Combobox(comboboxFrame, values=vendorCatList, width=40, height=10)
+        combobox = Combobox(comboboxFrame, values=vendorCatList, background=windowColor, font=textBoxText, width=40, height=10)
         combobox.pack(anchor='w')
 
         #BUTTONS
-        buttonFrame = tk.Frame(rootFrame)
+        buttonFrame = tk.Frame(rootFrame, bg=windowColor)
         buttonFrame.grid(row=0, column=1, pady=(5, 0), sticky='w')
 
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
-        tk.Button(buttonFrame, width=10, text='Back', command=backPress).pack(side='right')
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='Back', command=backPress).pack(side='right')
 
         #UCS LABEL
         labelFrame2 = tk.Frame(rootFrame)
         labelFrame2.grid(row=1, column=0, pady=5, sticky='w', columnspan=2)
 
-        label = tk.Label(labelFrame2, text=catID, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
+        label = tk.Label(labelFrame2, text=catID, background=windowColor, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
         label.pack(fill='x')
 
         #BINDINGS
@@ -471,9 +485,12 @@ class vendorCategoryWindow(tk.Frame):
 class filenameWindow(tk.Frame):
     def __init__(self, master):
         tk.Frame.__init__(self, master)
+
         master.title('Filename')
 
-        rootFrame = tk.Frame(self)
+        self.configure(background=windowColor)
+
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=10)
 
         #FUNCTIONS
@@ -513,15 +530,15 @@ class filenameWindow(tk.Frame):
         textFrame = tk.Frame(rootFrame)
         textFrame.grid(row=0, column=0, pady=(10, 5), sticky='w')
 
-        textbox = tk.Text(textFrame, width=50, height=1, font=textBoxFont)
+        textbox = tk.Text(textFrame, width=50, height=1, highlightthickness=0, font=textBoxText)
         textbox.pack()
 
         #BUTTONS
-        buttonFrame = tk.Frame(rootFrame)
+        buttonFrame = tk.Frame(rootFrame, bg=windowColor)
         buttonFrame.grid(row=0, column=1, pady=(5,0), sticky='w')
 
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
-        tk.Button(buttonFrame, width=10, text='Back', command=backPress).pack(side='right')
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='Back', command=backPress).pack(side='right')
 
         #OPTIONS
         optionsFrame = tk.Frame(rootFrame)
@@ -530,7 +547,7 @@ class filenameWindow(tk.Frame):
         titlecaseCheck = tk.IntVar()
         titlecaseCheck.set(configSettings['Options']['titlecase'])
 
-        titlecaseCheckbox = tk.Checkbutton(optionsFrame, variable=titlecaseCheck, text='Title case', font=ucsLabelText)
+        titlecaseCheckbox = tk.Checkbutton(optionsFrame, variable=titlecaseCheck, text='Title case', font=ucsLabelText, bg=windowColor, fg=textColor, selectcolor=checkboxColor, activebackground=checkboxHighlightColor, activeforeground=textColor)
         titlecaseCheckbox.pack()
         titlecaseCheckbox.var = titlecaseCheck
 
@@ -538,7 +555,7 @@ class filenameWindow(tk.Frame):
         labelFrame = tk.Frame(rootFrame)
         labelFrame.grid(row=1, column=0, sticky='w', columnspan=2)
 
-        label = tk.Label(labelFrame, pady=5, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
+        label = tk.Label(labelFrame, background=windowColor, pady=5, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
         label.pack(fill='x')
 
         if configSettings.getboolean('Options', 'vendorcat') == 1:
@@ -558,9 +575,12 @@ class filenameWindow(tk.Frame):
 class creatorIDWindow(tk.Frame):
     def __init__(self, master):
         tk.Frame.__init__(self, master)
+
         master.title('Creator ID')
 
-        rootFrame = tk.Frame(self)
+        self.configure(background=windowColor)
+
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=10)
 
         #FUNCTIONS
@@ -592,22 +612,22 @@ class creatorIDWindow(tk.Frame):
         comboboxFrame = tk.Frame(rootFrame)
         comboboxFrame.grid(row=1, column=0, pady=(10, 5), sticky='w')
 
-        combobox = Combobox(comboboxFrame, values=creatorIDList, width=40, height=10)
+        combobox = Combobox(comboboxFrame, values=creatorIDList, background=windowColor, font=textBoxText, width=40, height=10)
         combobox.pack(anchor='w')
 
         #BUTTONS
-        buttonFrame = tk.Frame(rootFrame)
+        buttonFrame = tk.Frame(rootFrame, bg=windowColor)
         buttonFrame.grid(row=1, column=1, pady=(5, 0), sticky='w')
 
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
-        tk.Button(buttonFrame, width=10, text='Back', command=lambda: master.switchFrame(filenameWindow)).pack(side='right')
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='Back', command=lambda: master.switchFrame(filenameWindow)).pack(side='right')
 
         #INFO LABEL
         labelFrame1 = tk.Frame(rootFrame)
         labelFrame1.grid(row=0, column=0, sticky='w')
         
-        label1 = tk.Label(labelFrame1, text='If none, leave blank.')
-        label1.configure(pady=5, font=textBoxFont)
+        label1 = tk.Label(labelFrame1, text='If none, leave blank.', fg=textColor)
+        label1.configure(pady=5, background=windowColor, font=textBoxText)
         label1.pack(fill='x')
 
         #UCS LABEL
@@ -615,7 +635,7 @@ class creatorIDWindow(tk.Frame):
         labelFrame2.grid(row=2, column=0, pady=5, sticky='w', columnspan=2)
 
         label = tk.Label(labelFrame2, text=catID + '_' + filename)
-        label.configure(anchor='w', font=ucsLabelText, fg=ucsLabelColor)
+        label.configure(background=windowColor, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
         label.pack(fill='x')
 
         #BINDINGS
@@ -630,7 +650,9 @@ class sourceIDWindow(tk.Frame):
         tk.Frame.__init__(self, master)
         master.title('Source ID')
 
-        rootFrame = tk.Frame(self)
+        self.configure(background=windowColor)
+
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=10)
 
         #FUNCTIONS
@@ -662,22 +684,22 @@ class sourceIDWindow(tk.Frame):
         comboboxFrame = tk.Frame(rootFrame)
         comboboxFrame.grid(row=1, column=0, pady=(10, 5), sticky='w')
         
-        combobox = Combobox(comboboxFrame, values=sourceIDList, width=40, height=10)
+        combobox = Combobox(comboboxFrame, values=sourceIDList, background=windowColor, font=textBoxText, width=40, height=10)
         combobox.pack(anchor='w')
 
         #BUTTONS
-        buttonFrame = tk.Frame(rootFrame)
+        buttonFrame = tk.Frame(rootFrame, bg=windowColor)
         buttonFrame.grid(row=1, column=1, pady=(5, 0), sticky='w')
 
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
-        tk.Button(buttonFrame, width=10, text='Back', command=lambda: master.switchFrame(creatorIDWindow)).pack(side='right')
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='Back', command=lambda: master.switchFrame(creatorIDWindow)).pack(side='right')
 
         #INFO LABEL
         labelFrame1 = tk.Frame(rootFrame)
         labelFrame1.grid(row=0, column=0, sticky='w')
         
         label1 = tk.Label(labelFrame1, text='If none, leave blank.')
-        label1.configure(pady=5, font=textBoxFont)
+        label1.configure(pady=5, background=windowColor, font=textBoxText, fg=textColor)
         label1.pack(fill='x')
 
         #UCS LABEL
@@ -685,7 +707,7 @@ class sourceIDWindow(tk.Frame):
         labelFrame2.grid(row=2, column=0, pady=5, sticky='w', columnspan=2)
 
         label = tk.Label(labelFrame2, text=catID + '_' + filename + '_' + creatorID)
-        label.configure(anchor='w', font=ucsLabelText, fg=ucsLabelColor)
+        label.configure(background=windowColor, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
         label.pack(fill='x')
 
         #BINDINGS
@@ -698,9 +720,12 @@ class sourceIDWindow(tk.Frame):
 class userDataWindow(tk.Frame):
     def __init__(self, master):
         tk.Frame.__init__(self, master)
+
         master.title('User Data')
 
-        rootFrame = tk.Frame(self)
+        self.configure(background=windowColor)
+
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=10)
 
         #FUNCTIONS
@@ -713,7 +738,7 @@ class userDataWindow(tk.Frame):
 
             if configSettings.getboolean('Options', 'noconfirm') == 1:
                 copyToClipboard()
-                master.switchFrame(categoryIDWindow)
+                master.destroy()
             else:
                 copyToClipboard()
                 master.switchFrame(confirmationWindow)
@@ -728,22 +753,22 @@ class userDataWindow(tk.Frame):
         textFrame = tk.Frame(rootFrame)
         textFrame.grid(row=1, column=0, pady=(5, 5), sticky='w')
 
-        textbox = tk.Text(textFrame, width=50, height=1, font=textBoxFont)
+        textbox = tk.Text(textFrame, width=50, height=1, highlightthickness=0, font=textBoxText)
         textbox.pack()
 
         #BUTTONS
-        buttonFrame = tk.Frame(rootFrame)
+        buttonFrame = tk.Frame(rootFrame, bg=windowColor)
         buttonFrame.grid(row=1, column=1, sticky='w')
 
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
-        tk.Button(buttonFrame, width=10, text='Back', command=lambda: master.switchFrame(sourceIDWindow)).pack(side='right')
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='OK', command=OKPress).pack(side='left', padx=10)
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='Back', command=lambda: master.switchFrame(sourceIDWindow)).pack(side='right')
 
         #INFO LABEL
         labelFrame1 = tk.Frame(rootFrame)
         labelFrame1.grid(row=0, column=0, sticky='w')
         
         label1 = tk.Label(labelFrame1, text='If none, leave blank.')
-        label1.configure(pady=5, font=textBoxFont)
+        label1.configure(pady=5, background=windowColor, font=textBoxText, fg=textColor)
         label1.pack(fill='x')
 
         #UCS LABEL
@@ -751,7 +776,7 @@ class userDataWindow(tk.Frame):
         labelFrame2.grid(row=2, column=0, sticky='w', columnspan=2)
 
         label2 = tk.Label(labelFrame2, text=catID + '_' + filename + '_' + creatorID + '_' + sourceID)
-        label2.configure(pady=10, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
+        label2.configure(pady=10, background=windowColor, anchor='w', font=ucsLabelText, fg=ucsLabelColor)
         label2.pack(fill='x')
 
         #BINDINGS
@@ -764,38 +789,41 @@ class userDataWindow(tk.Frame):
 class confirmationWindow(tk.Frame):
     def __init__(self, master):
         tk.Frame.__init__(self, master)
+
         master.title('Filename Assistant')
 
-        rootFrame = tk.Frame(self)
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=(10, 50))
+
+        self.configure(background=windowColor)
 
         #FUNCTIONS
         def OKPress():
             updateConfigBool(noConfirm.get(), 'Options', 'noconfirm', str(noConfirm.get()))
-            master.switchFrame(categoryIDWindow)
+            master.quit()
 
         #LABELS
-        labelFrame = tk.Frame(rootFrame)
+        labelFrame = tk.Frame(rootFrame, background=windowColor)
         labelFrame.grid(row=0, column=0, sticky='w', pady=10, padx=10)
 
         label1 = tk.Label(labelFrame, text=master.clipboard_get(), fg=ucsLabelColor)
-        label2 = tk.Label(labelFrame, text='has been copied to the clipboard.')
+        label2 = tk.Label(labelFrame, text='has been copied to the clipboard.', fg=textColor)
 
-        label1.configure(anchor='w', font=ucsLabelText)
-        label2.configure(anchor='w', font=ucsLabelText)
+        label1.configure(background=windowColor, anchor='w', font=ucsLabelText)
+        label2.configure(background=windowColor, anchor='w', font=ucsLabelText)
 
         label1.pack(fill='x', pady=(0, 5), side='top')
         label2.pack(fill='x', pady=(5, 0), side='bottom')
 
         #BUTTONS
-        buttonFrame = tk.Frame(rootFrame)
+        buttonFrame = tk.Frame(rootFrame, bg=windowColor)
         buttonFrame.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky='w')
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='right', padx=10)       
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='OK', command=OKPress).pack(side='right', padx=10)       
 
         noConfirm = tk.IntVar()
         noConfirm.set(configSettings['Options']['noconfirm'])
 
-        checkbox = tk.Checkbutton(buttonFrame, variable=noConfirm, text="Don't show this again.")
+        checkbox = tk.Checkbutton(buttonFrame, variable=noConfirm, text="Don't show this again.", bg=windowColor, fg=textColor, selectcolor=checkboxColor, activebackground=checkboxHighlightColor, activeforeground=textColor)
         checkbox.pack(side='left')
         checkbox.var = noConfirm
 
@@ -807,26 +835,10 @@ class batchRenameWindow(tk.Frame):
         master.resizable(False, False)
         master.title('Batch Rename')
 
-        rootFrame = tk.Frame(self)
-        rootFrame.grid(padx=10)
+        self.configure(background=windowColor)
 
-        #MENUBAR
-        menubar = Menu(master)
-
-        menubar.add_command(label='Filename Assistant', command=lambda:master.switchFrame(categoryIDWindow))
-
-        optionsMenu = Menu(menubar, tearoff=0)
-        optionsMenu.add_command(label="Edit User Lists", command=openUserLists)
-        optionsMenu.add_separator()
-        optionsMenu.add_command(label="Exit", command=lambda:master.destroy)
-        menubar.add_cascade(label="Options", menu=optionsMenu)
-
-        helpMenu = Menu(menubar, tearoff=0)
-        helpMenu.add_command(label="Filename Assistant", command=openFnAsstDoc)
-        helpMenu.add_command(label="Universal Category System", command=openUCSDoc)
-        menubar.add_cascade(label="Help", menu=helpMenu)
-
-        master.config(menu=menubar)
+        rootFrame = tk.Frame(self, bg=windowColor)
+        rootFrame.grid(padx=10, rowspan=1, columnspan=1)
 
         #FUNCTIONS
         creatorIDList = []
@@ -949,6 +961,14 @@ class batchRenameWindow(tk.Frame):
             for filename in inFilename:
                 newFilename.append(filename)
 
+                if vendorCatCheck.get() == True:                       
+                    BR_vendorCategory = vendorCatCombobox.get().upper() + '-'
+                    newFilename[index] = BR_vendorCategory + newFilename[index]
+                    updateUserList('Vendor Category', vendorCatCombobox.get().upper(), vendorCatList)
+                    updateConfigVar('Batch Rename', 'vendorcatinput', vendorCatCombobox.get().upper())
+                else:
+                    updateConfigVar('Batch Rename', 'vendorcatinput', '')
+
                 if filenameCheck.get() == True and vendorCatCheck.get() == True:
                     filename = filenameTextbox.get('1.0', END).strip()
                     newFilename[index] = BR_vendorCategory + filename
@@ -995,14 +1015,6 @@ class batchRenameWindow(tk.Frame):
                     updateConfigVar('Batch Rename', 'filenameinput', filenameTextbox.get('1.0', END).strip())
                 else:
                     updateConfigVar('Batch Rename', 'filenameinput', '')
-
-                if vendorCatCheck.get() == True:                       
-                    BR_vendorCategory = vendorCatCombobox.get().upper() + '-'
-                    newFilename[index] = BR_vendorCategory + newFilename[index]
-                    updateUserList('Vendor Category', vendorCatCombobox.get().upper(), vendorCatList)
-                    updateConfigVar('Batch Rename', 'vendorcatinput', vendorCatCombobox.get().upper())
-                else:
-                    updateConfigVar('Batch Rename', 'vendorcatinput', '')
 
                 if catIDCheck.get() == True:
                     for i in catIDListbox.curselection():
@@ -1127,20 +1139,19 @@ class batchRenameWindow(tk.Frame):
             master.switchFrame(batchConfirmationWindow)
         
         #IN FILES
-        inFileFrame = tk.Frame(rootFrame)
+        inFileFrame = tk.Frame(rootFrame, background=windowColor)
         inFileFrame.grid(row=0, column=0, pady=5, sticky='nw')
 
-        inFileTextbox = tk.Text(inFileFrame, height=1)
+        inFileTextbox = tk.Text(inFileFrame, height=1, highlightthickness=0)
         inFileTextbox.pack(fill='x', pady=5)
 
-        charCountLabel = tk.Label(inFileFrame, text='Characters: ')
+        charCountLabel = tk.Label(inFileFrame, text='Characters: ', bg=windowColor, fg=textColor)
         charCountLabel.pack(anchor='w', pady=(0, 5))
 
-        inFileListbox = tk.Listbox(inFileFrame, selectmode='single', activestyle='none', height=30, font='Arial 12')
-        inFileListbox.config(exportselection=False)
+        inFileListbox = tk.Listbox(inFileFrame, selectmode='single', activestyle='none', height=40, font='Arial', background=widgetBgColor, foreground=textColor)
         inFileListbox.pack(fill='x')
 
-        fileCountLabel = tk.Label(inFileFrame, text='Files:')
+        fileCountLabel = tk.Label(inFileFrame, text='Files:', background=windowColor, foreground=textColor)
         fileCountLabel.pack(anchor='w')
 
         refillIndex = 0
@@ -1150,29 +1161,29 @@ class batchRenameWindow(tk.Frame):
             fileCountLabel['text'] = 'Files: ' + str(len(inFilename))
 
         #OPTIONS
-        optionsFrame = tk.Frame(rootFrame)
-        optionsFrame.grid(padx=10, pady=5, row=0, column=1, rowspan=2, sticky='nw')
+        optionsFrame = tk.Frame(rootFrame, background=windowColor)
+        optionsFrame.grid(padx=10, pady=5, row=0, column=1, rowspan=3, sticky='nw')
         Separator(optionsFrame, orient='vertical').pack(fill='y', side='left')
 
         #FIND & REPLACE
         findReplaceCheck = tk.IntVar()
         findReplaceCheck.set(configSettings['Batch Rename']['findandreplacecheck'])
-        findReplaceCheckbox = tk.Checkbutton(optionsFrame, variable=findReplaceCheck, text='Find & Replace')
+        findReplaceCheckbox = tk.Checkbutton(optionsFrame, variable=findReplaceCheck, text='Find & Replace', bg=windowColor, fg=textColor, selectcolor=windowColor)
         findReplaceCheckbox.pack(anchor='w')
 
-        findReplaceFrame = tk.Frame(optionsFrame)
+        findReplaceFrame = tk.Frame(optionsFrame, background=windowColor)
         findReplaceFrame.pack(padx=20, pady=(0, 5), anchor='w')
 
-        FRLabelFrame = tk.Frame(findReplaceFrame)
+        FRLabelFrame = tk.Frame(findReplaceFrame, background=windowColor)
         FRLabelFrame.pack(side='left')
-        tk.Label(FRLabelFrame, text='Find:').pack(pady=5, anchor='w')
-        tk.Label(FRLabelFrame, text='Replace:').pack(anchor='w')
+        tk.Label(FRLabelFrame, text='Find:', bg=windowColor, fg=textColor).pack(pady=5, anchor='w')
+        tk.Label(FRLabelFrame, text='Replace:', bg=windowColor, fg=textColor).pack(anchor='w')
 
-        FRTextFrame = tk.Frame(findReplaceFrame)
+        FRTextFrame = tk.Frame(findReplaceFrame, background=windowColor)
         FRTextFrame.pack(padx=(10, 0), side='right')
-        findTextBox = tk.Text(FRTextFrame, height=1, width=29)
+        findTextBox = tk.Text(FRTextFrame, height=1, width=29, highlightthickness=0)
         findTextBox.insert('1.0', configSettings['Batch Rename']['findInput'])
-        replaceTextBox = tk.Text(FRTextFrame, height=1, width=29)
+        replaceTextBox = tk.Text(FRTextFrame, height=1, width=29, highlightthickness=0)
         replaceTextBox.insert('1.0', configSettings['Batch Rename']['replaceInput'])
         
         findTextBox.pack(pady=5, anchor='e')
@@ -1182,18 +1193,18 @@ class batchRenameWindow(tk.Frame):
         Separator(optionsFrame, orient='horizontal').pack(fill='x')
         catIDCheck = tk.IntVar()
         catIDCheck.set(configSettings['Batch Rename']['catidcheck'])
-        catIDCheckbox = tk.Checkbutton(optionsFrame, variable=catIDCheck, text='Category ID')
+        catIDCheckbox = tk.Checkbutton(optionsFrame, variable=catIDCheck, text='Category ID', bg=windowColor, fg=textColor, selectcolor=windowColor)
         catIDCheckbox.pack(anchor='w')
         
-        catIDFrame = tk.Frame(optionsFrame)
+        catIDFrame = tk.Frame(optionsFrame, background=windowColor)
         catIDFrame.pack(padx=20, pady=5, anchor='w')
 
-        catIDTextbox = tk.Text(catIDFrame, width=20, height=1, font=textBoxFont)
+        catIDTextbox = tk.Text(catIDFrame, width=20, height=1, highlightthickness=0, font=textBoxText)
         catIDTextbox.pack(pady=(0, 5), anchor='w', fill='x')
-        catIDListbox = tk.Listbox(catIDFrame, width=35, height=5, selectmode='single', activestyle='none', font='Courier 12')
+        catIDListbox = tk.Listbox(catIDFrame, width=35, height=5, selectmode='single', activestyle='none', font='Courier 14', background=widgetBgColor, foreground=textColor, exportselection=False)
         listboxScroll = tk.Scrollbar(catIDFrame, orient='vertical', command=catIDListbox.yview)
 
-        catIDListbox.config(yscrollcommand=listboxScroll.set, xscrollcommand='', exportselection=False)
+        catIDListbox.config(yscrollcommand=listboxScroll.set, xscrollcommand='')
 
         catIDListbox.pack(side='left', anchor='w')
         listboxScroll.pack(side='right', fill='y')
@@ -1216,60 +1227,60 @@ class batchRenameWindow(tk.Frame):
         Separator(optionsFrame, orient='horizontal').pack(fill='x')
         filenameCheck = tk.IntVar()
         filenameCheck.set(configSettings['Batch Rename']['filenamecheck'])
-        filenameCheckbox = tk.Checkbutton(optionsFrame, variable=filenameCheck, text='Clear & Replace Filename')
+        filenameCheckbox = tk.Checkbutton(optionsFrame, variable=filenameCheck, text='Clear & Replace Filename', bg=windowColor, fg=textColor, selectcolor=windowColor)
         filenameCheckbox.pack(anchor='w')
 
-        filenameTextbox = tk.Text(optionsFrame, width=39, height=1)
+        filenameTextbox = tk.Text(optionsFrame, width=39, height=1, highlightthickness=0)
         filenameTextbox.pack(padx=20, pady=5, anchor='w')
         filenameTextbox.insert('1.0', configSettings['Batch Rename']['filenameinput'])
 
         #TRIM
         trimCheck = tk.IntVar()
         trimCheck.set(configSettings['Batch Rename']['trimcheck'])
-        trimCheckbox = tk.Checkbutton(optionsFrame, variable=trimCheck, text='Trim Filename')
+        trimCheckbox = tk.Checkbutton(optionsFrame, variable=trimCheck, text='Trim Filename', bg=windowColor, fg=textColor, selectcolor=windowColor)
         trimCheckbox.pack(anchor='w')
 
-        trimFrame = tk.Frame(optionsFrame)
+        trimFrame = tk.Frame(optionsFrame, background=windowColor)
         trimFrame.pack(padx=20, anchor='w')
 
-        trimLabelFrame = tk.Frame(trimFrame)
+        trimLabelFrame = tk.Frame(trimFrame, background=windowColor)
         trimLabelFrame.pack(side='left')
 
-        tk.Label(trimLabelFrame, text='From Beginning:').pack(pady=(0, 5), anchor='w')
-        tk.Label(trimLabelFrame, text='From End:').pack(anchor='w')
+        tk.Label(trimLabelFrame, text='From Beginning:', bg=windowColor, fg=textColor).pack(pady=(0, 5), anchor='w')
+        tk.Label(trimLabelFrame, text='From End:', bg=windowColor, fg=textColor).pack(anchor='w')
 
-        spinboxFrame = tk.Frame(trimFrame)
+        spinboxFrame = tk.Frame(trimFrame, background=windowColor)
         spinboxFrame.pack(padx=(10, 0), side='right')
 
         fromInit = tk.IntVar()
         fromInit.set(configSettings['Batch Rename']['frominput'])
 
-        fromWheel = Spinbox(spinboxFrame, from_=0, to=999, width=3, textvariable=fromInit)
+        fromWheel = Spinbox(spinboxFrame, from_=0, to=999, width=3, textvariable=fromInit, background=widgetBgColor, highlightbackground=windowColor, foreground=textColor)
         fromWheel.pack()
 
         toInit = tk.IntVar()
         toInit.set(configSettings['Batch Rename']['toinput'])
 
-        toWheel = Spinbox(spinboxFrame, from_=0, to=999, width=3, textvariable=toInit)
+        toWheel = Spinbox(spinboxFrame, from_=0, to=999, width=3, textvariable=toInit, background=widgetBgColor, highlightbackground=windowColor, foreground=textColor)
         toWheel.pack()
 
         #CREATOR & SOURCE ID
         Separator(optionsFrame, orient='horizontal').pack(fill='x')
         creatorIDCheck = tk.IntVar()
         creatorIDCheck.set(configSettings['Batch Rename']['creatoridcheck'])
-        creatorIDCheckbox = tk.Checkbutton(optionsFrame, variable=creatorIDCheck, text='Creator ID')
+        creatorIDCheckbox = tk.Checkbutton(optionsFrame, variable=creatorIDCheck, text='Creator ID', bg=windowColor, fg=textColor, selectcolor=windowColor)
         creatorIDCheckbox.pack(anchor='w')
 
-        creatorIDCombobox = Combobox(optionsFrame, values=creatorIDList, width=28, height=10)
+        creatorIDCombobox = Combobox(optionsFrame, values=creatorIDList, background=windowColor, font=textBoxText, width=28, height=10)
         creatorIDCombobox.pack(padx=20, pady=5)
         creatorIDCombobox.insert(0, configSettings['Batch Rename']['creatoridinput'])
 
         sourceIDCheck = tk.IntVar()
         sourceIDCheck.set(configSettings['Batch Rename']['sourceidcheck'])
-        sourceIDCheckbox = tk.Checkbutton(optionsFrame, variable=sourceIDCheck, text='Source ID')
+        sourceIDCheckbox = tk.Checkbutton(optionsFrame, variable=sourceIDCheck, text='Source ID', bg=windowColor, fg=textColor, selectcolor=windowColor)
         sourceIDCheckbox.pack(anchor='w')
 
-        sourceIDCombobox = Combobox(optionsFrame, values=sourceIDList, width=28, height=10)
+        sourceIDCombobox = Combobox(optionsFrame, values=sourceIDList, background=windowColor, font=textBoxText, width=28, height=10)
         sourceIDCombobox.pack(padx=20, pady=5)
         sourceIDCombobox.insert(0, configSettings['Batch Rename']['sourceidinput'])
 
@@ -1277,22 +1288,23 @@ class batchRenameWindow(tk.Frame):
         Separator(optionsFrame, orient='horizontal').pack(fill='x')
         userCatCheck = tk.IntVar()
         userCatCheck.set(configSettings['Batch Rename']['usercatcheck'])
-        userCatCheckbox = tk.Checkbutton(optionsFrame, variable=userCatCheck, text='User Category')
+        userCatCheckbox = tk.Checkbutton(optionsFrame, variable=userCatCheck, text='User Category', bg=windowColor, fg=textColor, selectcolor=windowColor)
         userCatCheckbox.pack(anchor='w')
 
         userCatInput = configSettings['Batch Rename']['usercatinput']
-        userCatCombobox = Combobox(optionsFrame, values=userCatList, width=28, height=10)
+        userCatCombobox = Combobox(optionsFrame, values=userCatList, background=windowColor, font=textBoxText, width=28, height=10)
         userCatCombobox.insert(0, userCatInput)
         userCatCombobox.pack(padx=20, pady=5)
         userCatCombobox.insert(0, configSettings['Batch Rename']['usercatinput'])
 
         vendorCatCheck = tk.IntVar()
         vendorCatCheck.set(configSettings['Batch Rename']['vendorcatcheck'])
-        vendorCatCheckbox = tk.Checkbutton(optionsFrame, variable=vendorCatCheck, text='Vendor Category')
+        vendorCatCheckbox = tk.Checkbutton(optionsFrame, variable=vendorCatCheck, text='Vendor Category', bg=windowColor, fg=textColor, selectcolor=windowColor)
         vendorCatCheckbox.pack(anchor='w')
 
         vendorCatInput = configSettings['Batch Rename']['vendorcatinput']
-        vendorCatCombobox = Combobox(optionsFrame, values=vendorCatList, width=28, height=10)
+        vendorCatCombobox = Combobox(optionsFrame, values=vendorCatList, background=windowColor, font=textBoxText, width=28, height=10)
+        vendorCatCombobox.insert(0, vendorCatInput)
         vendorCatCombobox.pack(padx=20, pady=5)
         vendorCatCombobox.insert(0, configSettings['Batch Rename']['vendorcatinput'])
 
@@ -1300,33 +1312,33 @@ class batchRenameWindow(tk.Frame):
         Separator(optionsFrame, orient='horizontal').pack(fill='x')
         userDataCheck = tk.IntVar()
         userDataCheck.set(configSettings['Batch Rename']['userdatacheck'])
-        userDataCheckbox = tk.Checkbutton(optionsFrame, variable=userDataCheck, text='User Data')
+        userDataCheckbox = tk.Checkbutton(optionsFrame, variable=userDataCheck, text='User Data', bg=windowColor, fg=textColor, selectcolor=windowColor)
         userDataCheckbox.pack(anchor='w')
         
-        userDataTextbox = tk.Text(optionsFrame, width=39, height=1)
+        userDataTextbox = tk.Text(optionsFrame, width=39, height=1, highlightthickness=0)
         userDataTextbox.pack(padx=20, pady=5, anchor='w')
         userDataTextbox.insert('1.0', configSettings['Batch Rename']['userdatainput'])
 
         numberingCheck = tk.IntVar()
         numberingCheck.set(configSettings['Batch Rename']['numberingcheck'])
-        numberingCheckbox = tk.Checkbutton(optionsFrame, variable=numberingCheck, text='Numbering')
+        numberingCheckbox = tk.Checkbutton(optionsFrame, variable=numberingCheck, text='Numbering', bg=windowColor, fg=textColor, selectcolor=windowColor)
         numberingCheckbox.pack(anchor='w')
 
-        numberingFrame = tk.Frame(optionsFrame)
+        numberingFrame = tk.Frame(optionsFrame, background=windowColor)
         numberingFrame.pack(padx=20, pady=5, anchor='w')
 
-        tk.Label(numberingFrame, text='Start:').pack(anchor='w', side='left')
+        tk.Label(numberingFrame, text='Start:', bg=windowColor, fg=textColor).pack(anchor='w', side='left')
         numberingInit = tk.IntVar()
         numberingInit.set(configSettings['Batch Rename']['numberinginput'])
 
-        numberingWheel = Spinbox(numberingFrame, from_=0, to=9999, width=4, textvariable=numberingInit)
+        numberingWheel = Spinbox(numberingFrame, from_=0, to=9999, width=4, textvariable=numberingInit, background=widgetBgColor, highlightbackground=windowColor, foreground=textColor)
         numberingWheel.pack(padx=10, anchor='w', side='right')
 
         #BUTTONS
         buttonFrame = tk.Frame(rootFrame)
         buttonFrame.grid(row=1, column=0, sticky='sw', pady=5)
 
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='left')
+        tk.Button(buttonFrame, width=10, text='OK', highlightbackground=windowColor, command=OKPress).pack(side='left')
 
         #BINDINGS
         catIDTextbox.bind('<KeyRelease>', textCheck)
@@ -1348,8 +1360,10 @@ class batchConfirmationWindow(tk.Frame):
         tk.Frame.__init__(self, master)
         master.title('Batch Rename')
 
-        rootFrame = tk.Frame(self)
+        rootFrame = tk.Frame(self, bg=windowColor)
         rootFrame.grid(padx=10, pady=10)
+
+        self.configure(background=windowColor)
 
         #FUNCTIONS
         def updateListbox(list):
@@ -1360,39 +1374,39 @@ class batchConfirmationWindow(tk.Frame):
             OKPress()
 
         def OKPress():
+            rewriteProgressWindow = tk.Tk()
+            rewriteProgressWindow.title('Rewriting...')
+            rewriteProgressbar = Progressbar(rewriteProgressWindow, length=280, mode='determinate')
+            rewriteProgressbar.pack()
+
             rewriteIndex = 0
             while rewriteIndex < len(newFilename):
                 os.replace(inDirectory[rewriteIndex] + '/' + inFilename[rewriteIndex] + inExtension[rewriteIndex], inDirectory[rewriteIndex] + '/' + newFilename[rewriteIndex])
                 rewriteIndex += 1
-
-            inDirectory.clear()
-            inFullFilename.clear()
-            inFilename.clear()
-            inExtension.clear()
-
-            master.switchFrame(batchRenameWindow)
+                rewriteProgressbar['value'] += 100/len(newFilename)
+            master.quit()
 
         def backPress():
             master.switchFrame(batchRenameWindow)
 
         #LABELS
-        labelFrame = tk.Frame(rootFrame)
+        labelFrame = tk.Frame(rootFrame, background=windowColor)
         labelFrame.grid(row=0, column=0, sticky='w')
-        tk.Label(labelFrame, text='Confirm batch rename:').pack()
+        tk.Label(labelFrame, text='Confirm batch rename:', bg=windowColor, fg=textColor).pack()
 
         #LISTBOX
-        listboxFrame = tk.Frame(rootFrame)
+        listboxFrame = tk.Frame(rootFrame, background=windowColor)
         listboxFrame.grid(column=0, row=1, sticky='w')
-        listbox = tk.Listbox(listboxFrame, width=50, height=30, selectmode='single', activestyle='none')
+        listbox = tk.Listbox(listboxFrame, width=50, height=30, selectmode='single', activestyle='none', background=widgetBgColor, foreground=textColor)
         listbox.pack(pady=10)
         updateListbox(newFilename)
 
         #BUTTONS
-        buttonFrame = tk.Frame(rootFrame)
+        buttonFrame = tk.Frame(rootFrame, background=windowColor)
         buttonFrame.grid(row=2, column=0, sticky='w')
-        tk.Label(buttonFrame, text='This action cannot be undone.', fg=ucsLabelColor).pack(side='top', anchor='w')
-        tk.Button(buttonFrame, width=10, text='OK', command=OKPress).pack(side='left')
-        tk.Button(buttonFrame, width=10, text='Back', command=backPress).pack(side='right')
+        tk.Label(buttonFrame, text='This action cannot be undone.', bg=windowColor, fg=ucsLabelColor).pack(side='top', anchor='w')
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='OK', command=OKPress).pack(side='left')
+        tk.Button(buttonFrame, highlightbackground=windowColor, width=10, text='Back', command=backPress).pack(side='right')
 
         listbox.focus_set()
 
