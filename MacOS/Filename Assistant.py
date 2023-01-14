@@ -53,7 +53,7 @@ configSettings = configparser.ConfigParser()
 configSettings.read(configFile)
 
 #CATEGORY ID INIT
-ucsURL = 'https://docs.google.com/spreadsheets/d/1lfYszp5TEjcqSUNgXd0ph9V3UDhXQFZFVtGkERH24u4/gviz/tq?tqx=out:csv&sheet=categorylist'
+ucsURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQ_iljxJvLxjpbbaUTnnp_ij2S5iLl-U4lmS5dmiHfkcIWgI-LH7zDhl8iLWig-Q/pub?output=csv'
 
 # try:
 #     requests.get(ucsURL, relpath + '/data/UCSList.csv', timeout=0.250)
