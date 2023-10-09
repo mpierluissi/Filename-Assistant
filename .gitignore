@@ -1,6 +1,8 @@
 Images/
 Manual/
 
+Builds
+
 PC/__pycache__
 PC/build
 PC/dist
