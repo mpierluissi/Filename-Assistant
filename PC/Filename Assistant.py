@@ -156,7 +156,7 @@ class categoryIDWindow(tk.Frame):
         tk.Frame.__init__(self, master)
         master.resizable(False, False)
         master.title('Category ID')
-        master.iconbitmap('data/icon.ico')
+        master.iconbitmap(relpath + '\data\icon.ico')
 
         rootFrame = tk.Frame(self)
         rootFrame.grid(padx=10)
